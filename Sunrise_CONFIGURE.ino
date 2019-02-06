@@ -127,9 +127,9 @@ void reconnect()
         delay(5000);
       }
     }
-    if(retries > 1500)
+    else
     {
-    ESP.restart();
+      ESP.restart();
     }
   }
 }

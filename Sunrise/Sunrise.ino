@@ -6,28 +6,7 @@
 #include <ESP8266mDNS.h>          //if you get an error here you need to install the ESP8266 board manager 
 #include <ArduinoOTA.h>           //ArduinoOTA is now included with the ArduinoIDE
 
-/*****************  START USER CONFIG SECTION *********************************/
-/*****************  START USER CONFIG SECTION *********************************/
-/*****************  START USER CONFIG SECTION *********************************/
-/*****************  START USER CONFIG SECTION *********************************/
-
-#define USER_SSID                 "YOUR_WIFI_SSID"
-#define USER_PASSWORD             "YOUR_WIFI_PASSWORD"
-#define USER_MQTT_SERVER          "YOUR MQTT SERVER"
-#define USER_MQTT_PORT            1883
-#define USER_MQTT_USERNAME        "YOUR_MQTT_LOGIN"
-#define USER_MQTT_PASSWORD        "YOUR_MQTT_PASSWORD"
-#define USER_MQTT_CLIENT_NAME     "SunriseMCU"           //used to define MQTT topics, MQTT Client ID, and ArduinoOTA
-#define LED_PIN 5                                        //pin where the led strip is hooked up
-#define NUM_LEDS 136                                     //number of LEDs in the strip
-#define BRIGHTNESS 255                                   //strip brightness 255 max
-#define SUNSIZE 30                                       //percentage of the strip that is the "sun"
-
-/*****************  END USER CONFIG SECTION *********************************/
-/*****************  END USER CONFIG SECTION *********************************/
-/*****************  END USER CONFIG SECTION *********************************/
-/*****************  END USER CONFIG SECTION *********************************/
-/*****************  END USER CONFIG SECTION *********************************/
+#include "config.h"
 
 /***********************  WIFI AND MQTT SETUP *****************************/
 /***********************  DON'T CHANGE THIS INFO *****************************/

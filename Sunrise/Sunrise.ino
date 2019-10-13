@@ -41,6 +41,9 @@ const char *mqtt_user = USER_MQTT_USERNAME ;
 const char *mqtt_pass = USER_MQTT_PASSWORD ;
 const char *mqtt_client_name = USER_MQTT_CLIENT_NAME ;
 
+/*****************  ENUMS         ****************************************/
+enum Effects { eOff, eSunrise, eMqttRGB };
+
 /*****************  DECLARATIONS  ****************************************/
 WiFiClient espClient;
 PubSubClient client(espClient);
@@ -59,7 +62,7 @@ byte red = 127;
 byte green = 127;
 byte blue = 127;
 byte white = 127;
-String effect = "off";
+Effects effect = eOff;
 char charPayload[50];
 int wakeDelay = 1000;
 int fadeStep = 98;
@@ -167,16 +170,25 @@ void callback(char* topic, byte* payload, unsigned int length)
   String newTopic = topic;
   Serial.print(topic);
   Serial.print("] ");
-  payload[length] = '\0';
-  String newPayload = String((char *)payload);
+  memset(&charPayload,0,sizeof(charPayload));
+  memcpy(charPayload, payload, min(sizeof(charPayload),length));
+  charPayload[length] = '\0';
+  String newPayload = String(charPayload);
   int intPayload = newPayload.toInt();
   Serial.println(newPayload);
   Serial.println();
-  newPayload.toCharArray(charPayload, newPayload.length() + 1); 
-  
-  if (newTopic == USER_MQTT_CLIENT_NAME"/command") 
+  newPayload.toCharArray(charPayload, newPayload.length() + 1);
+
+  if (newTopic == USER_MQTT_CLIENT_NAME"/command")
   {
-    effect = newPayload;
+    //effect = newPayload;
+    if ( strcmp(charPayload, "off") == 0 )
+    {
+      effect = eOff;
+    } else if ( strcmp(charPayload, "mqttRGB") == 0 )
+    {
+      effect = eMqttRGB;
+    }
     client.publish(USER_MQTT_CLIENT_NAME"/state", charPayload);
   }
   if (newTopic == USER_MQTT_CLIENT_NAME"/wakeAlarm")
@@ -185,7 +197,7 @@ void callback(char* topic, byte* payload, unsigned int length)
     sunPhase = 0;
     fadeStep = 0;
     sunFadeStep = 0;
-    effect = "sunrise";
+    effect = eSunrise;
     wakeDelay = intPayload*10;
     timer.setTimeout(wakeDelay, increaseSunPhase);
     timer.setTimeout(wakeDelay, increaseWhiteLevel);
@@ -203,17 +215,20 @@ void callback(char* topic, byte* payload, unsigned int length)
   {
     client.publish(USER_MQTT_CLIENT_NAME "/colorState", charPayload);
     // get the position of the first and second commas
-    uint8_t firstIndex = newPayload.indexOf(',');
-    uint8_t lastIndex = newPayload.lastIndexOf(',');
-    
-    uint8_t rgb_red = newPayload.substring(0, firstIndex).toInt();
-    red = rgb_red;
+    int firstIndex = newPayload.indexOf(',');
+    int lastIndex = newPayload.lastIndexOf(',');
 
-    uint8_t rgb_green = newPayload.substring(firstIndex + 1, lastIndex).toInt();
-    green = rgb_green;
-    
-    uint8_t rgb_blue = newPayload.substring(lastIndex + 1).toInt();
-    blue = rgb_blue;
+    if ( ( firstIndex > -1) && (lastIndex > -1) && (firstIndex != lastIndex) )
+    {
+      uint8_t rgb_red = newPayload.substring(0, firstIndex).toInt();
+      red = rgb_red;
+
+      uint8_t rgb_green = newPayload.substring(firstIndex + 1, lastIndex).toInt();
+      green = rgb_green;
+
+      uint8_t rgb_blue = newPayload.substring(lastIndex + 1).toInt();
+      blue = rgb_blue;
+    }
   }
 }
 
@@ -356,20 +371,20 @@ void mqttRGB()
 
 void selectEffect()
 {
-  if(effect == "sunrise")
+  switch(effect)
   {
-    sunRise();
-    digitalWrite(LED_BUILTIN, LED_ON);
-  }
-  if(effect == "mqttRGB")
-  {
-    mqttRGB();
-    digitalWrite(LED_BUILTIN, LED_ON);
-  }
-  if(effect == "off")
-  {
-    off();
-    digitalWrite(LED_BUILTIN, LED_OFF);
+    case eSunrise:
+      sunRise();
+      digitalWrite(LED_BUILTIN, LED_ON);
+      break;
+    case eMqttRGB:
+      mqttRGB();
+      digitalWrite(LED_BUILTIN, LED_ON);
+      break;
+    default:
+      off();
+      digitalWrite(LED_BUILTIN, LED_OFF);
+      break;
   }
 }
 

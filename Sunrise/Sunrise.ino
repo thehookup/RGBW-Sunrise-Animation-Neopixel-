@@ -70,6 +70,10 @@ int currentSun = 100;
 int oldSun = 0;
 int sunFadeStep = 98;
 
+#ifdef DEBUG
+  unsigned int debugTime;
+#endif
+
 void setup_wifi()
 {
   #ifdef ESP32
@@ -210,7 +214,6 @@ void callback(char* topic, byte* payload, unsigned int length)
     
     uint8_t rgb_blue = newPayload.substring(lastIndex + 1).toInt();
     blue = rgb_blue;
-    }
   }
 }
 
@@ -403,6 +406,23 @@ void loop()
   timer.run();
   selectEffect();
   strip.show();
+
+  #ifdef DEBUG
+    if ( millis() - debugTime > 5000 ) {
+      Serial.print("FreeHeap: ");
+      Serial.print(ESP.getFreeHeap());
+      #if defined(ESP8266)
+        Serial.print(" HeapFragmentation: ");
+        Serial.print(ESP.getHeapFragmentation());
+        Serial.print(" MaxFreeBlockSize: ");
+        Serial.println(ESP.getMaxFreeBlockSize());
+      #elif defined(ESP32)
+        Serial.print(" MaxAllocHeap: ");
+        Serial.println(ESP.getMaxAllocHeap());
+      #endif
+      debugTime = millis();
+    }
+  #endif
 }
 
 

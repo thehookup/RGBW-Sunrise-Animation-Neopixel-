@@ -100,7 +100,7 @@ void setup_wifi()
 
   Serial.println("");
   Serial.println("WiFi connected");
-  Serial.println("IP address: ");
+  Serial.print("IP address: ");
   Serial.println(WiFi.localIP());
 }
 
@@ -201,33 +201,13 @@ void callback(char* topic, byte* payload, unsigned int length)
     uint8_t lastIndex = newPayload.lastIndexOf(',');
     
     uint8_t rgb_red = newPayload.substring(0, firstIndex).toInt();
-    if (rgb_red < 0 || rgb_red > 255) 
-    {
-      return;
-    } 
-    else 
-    {
-      red = rgb_red;
-    }
-    
+    red = rgb_red;
+
     uint8_t rgb_green = newPayload.substring(firstIndex + 1, lastIndex).toInt();
-    if (rgb_green < 0 || rgb_green > 255) 
-    {
-      return;
-    } 
-    else 
-    {
-      green = rgb_green;
-    }
+    green = rgb_green;
     
     uint8_t rgb_blue = newPayload.substring(lastIndex + 1).toInt();
-    if (rgb_blue < 0 || rgb_blue > 255) 
-    {
-      return;
-    } 
-    else 
-    {
-      blue = rgb_blue;
+    blue = rgb_blue;
     }
   }
 }

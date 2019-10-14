@@ -2,7 +2,7 @@
 #include "config.h"
 
 /******************  LIBRARY SECTION *************************************/
-#include <Adafruit_NeoPixel.h>    //https://github.com/adafruit/Adafruit_NeoPixel
+#include <NeoPixelBus.h>          //https://github.com/Makuna/NeoPixelBus
 #include <SimpleTimer.h>          //https://github.com/thehookup/Simple-Timer-Library
 #include <PubSubClient.h>         //https://github.com/knolleary/pubsubclient
 #ifdef ESP32
@@ -48,7 +48,7 @@ enum Effects { eOff, eSunrise, eMqttRGB };
 WiFiClient espClient;
 PubSubClient client(espClient);
 SimpleTimer timer;
-Adafruit_NeoPixel strip = Adafruit_NeoPixel(NUM_LEDS, LED_PIN, NEO_GRBW + NEO_KHZ800);
+NeoPixelBus<NeoGrbwFeature, Neo800KbpsMethod> strip(NUM_LEDS, LED_PIN);
 
 /*****************  GENERAL VARIABLES  *************************************/
 
@@ -296,12 +296,12 @@ void drawSun()
   {
    int redValue =  map(sunFadeStep, 0, 100, 127, 255);
    int whiteValue = map(sunFadeStep, 0, 100, 0, whiteLevel);
-   strip.setPixelColor(newSunLeft, redValue, 25,0,whiteValue);
-   strip.setPixelColor(newSunRight, redValue, 25,0,whiteValue);
+   strip.SetPixelColor(newSunLeft, RgbwColor(redValue, 25,0,whiteValue));
+   strip.SetPixelColor(newSunRight, RgbwColor(redValue, 25,0,whiteValue));
   }
   for(int i = sunStart; i < sunStart+currentSun; i++)
   {
-    strip.setPixelColor(i, 255, 64,0,whiteLevel);
+    strip.SetPixelColor(i, RgbwColor(255, 64,0,whiteLevel));
   }
   oldSun = currentSun;
 }
@@ -325,12 +325,12 @@ void drawAurora()
   {
    int redValue =  map(fadeStep, 0, 100, whiteLevel, 127);
    int greenValue =  map(fadeStep, 0, 100, 0, 25);
-   strip.setPixelColor(newAuroraRight, redValue, greenValue,0,0);
-   strip.setPixelColor(newAuroraLeft, redValue, greenValue,0,0);
+   strip.SetPixelColor(newAuroraRight, RgbwColor(redValue, greenValue,0,0));
+   strip.SetPixelColor(newAuroraLeft, RgbwColor(redValue, greenValue,0,0));
   }
   for(int i = sunStart; i < sunStart+currentAurora; i++)
   {
-    strip.setPixelColor(i, 127, 25,0,0);
+    strip.SetPixelColor(i, RgbwColor(127, 25,0,0));
   }
   oldFadeStep = fadeStep;
   oldAurora = currentAurora;
@@ -340,7 +340,7 @@ void drawAmbient()
 {
   for(int i = 0; i < NUM_LEDS; i++)
   {
-    strip.setPixelColor(i, whiteLevel, 0,0,0);
+    strip.SetPixelColor(i, RgbwColor(whiteLevel,0,0,0));
   }
 }
 
@@ -355,7 +355,7 @@ void off()
 {
   for(int i = 0; i < NUM_LEDS; i++)
   {
-    strip.setPixelColor(i, 0,0,0,0); 
+    strip.SetPixelColor(i, RgbwColor(0,0,0,0)); 
   }
 }
 
@@ -363,7 +363,7 @@ void mqttRGB()
 {
   for(int i = 0; i < NUM_LEDS; i++)
   {
-    strip.setPixelColor(i, red,green,blue,white); 
+    strip.SetPixelColor(i, RgbwColor(red,green,blue,white)); 
   }
 }
 
@@ -432,8 +432,10 @@ void setup()
 
     ArduinoOTA.begin();
   #endif
-  strip.setBrightness(BRIGHTNESS);
-  strip.begin();
+
+  // this resets all the neopixels to an off state
+  strip.Begin();
+  strip.Show();
 }
 
 void loop() 
@@ -448,7 +450,7 @@ void loop()
   #endif
   timer.run();
   selectEffect();
-  strip.show();
+  strip.Show();
 
   #ifdef DEBUG
     if ( millis() - debugTime > 5000 ) {

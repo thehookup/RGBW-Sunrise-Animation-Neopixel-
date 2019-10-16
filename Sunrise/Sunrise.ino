@@ -40,6 +40,7 @@ const int mqtt_port = USER_MQTT_PORT ;
 const char *mqtt_user = USER_MQTT_USERNAME ;
 const char *mqtt_pass = USER_MQTT_PASSWORD ;
 const char *mqtt_client_name = USER_MQTT_CLIENT_NAME ;
+const char *mqtt_lwt_topic = LWTTOPIC ;
 
 /*****************  ENUMS         ****************************************/
 enum Effects { eOff, eSunrise, eMqttRGB };
@@ -121,9 +122,10 @@ void reconnect()
     {
         Serial.print("Attempting MQTT connection...");
       // Attempt to connect
-      if (client.connect(mqtt_client_name, mqtt_user, mqtt_pass))
+      if (client.connect(mqtt_client_name, mqtt_user, mqtt_pass, mqtt_lwt_topic, 0, true, "Offline"))
       {
         Serial.println("connected");
+        client.publish(mqtt_lwt_topic, "Online", true);
         // Once connected, publish an announcement...
         if(boot == true)
         {
@@ -189,7 +191,7 @@ void callback(char* topic, byte* payload, unsigned int length)
     {
       effect = eMqttRGB;
     }
-    client.publish(USER_MQTT_CLIENT_NAME"/state", charPayload);
+    client.publish(USER_MQTT_CLIENT_NAME"/state", charPayload, true);
   }
   if (newTopic == USER_MQTT_CLIENT_NAME"/wakeAlarm")
   {

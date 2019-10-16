@@ -10,6 +10,8 @@
 #define USER_MQTT_USERNAME        "YOUR_MQTT_LOGIN"
 #define USER_MQTT_PASSWORD        "YOUR_MQTT_PASSWORD"
 #define USER_MQTT_CLIENT_NAME     "SunriseMCU"           //used to define MQTT topics, MQTT Client ID, and ArduinoOTA
+#define LWTTOPIC "LWT/" USER_MQTT_CLIENT_NAME
+
 #if defined(ESP32)
     #define LED_PIN 23                                   //pin where the led strip is hooked up
 #else

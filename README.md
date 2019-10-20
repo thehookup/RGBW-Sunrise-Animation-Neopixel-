@@ -41,6 +41,9 @@ light:
     rgb_state_topic: "SunriseMCU/colorState"
     white_value_command_topic: "SunriseMCU/white"
     white_value_state_topic: "SunriseMCU/whiteState"
+    availability_topic: "LWT/SunriseMCU"
+    payload_available: "Online"
+    payload_not_available: "Offline"
     white_value_scale: 255
     retain: true
 ```

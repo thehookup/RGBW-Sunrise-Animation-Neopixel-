@@ -52,8 +52,8 @@ bool boot = true;
 int sun = (SUNSIZE * NUM_LEDS)/100;
 int aurora = NUM_LEDS;
 //int aurora = (SUNSIZE+40 * NUM_LEDS)/100;
-int sunPhase = 0;
-int whiteLevel = 0;
+int sunPhase = 100;
+int whiteLevel = 100;
 byte red = 127; 
 byte green = 127;
 byte blue = 127;
@@ -61,13 +61,13 @@ byte white = 127;
 String effect = "off";
 char charPayload[50];
 int wakeDelay = 1000;
-int fadeStep = 0;
+int fadeStep = 98;
 int oldFadeStep = 0;
-int currentAurora = 0;
+int currentAurora = 100;
 int oldAurora = 0;
-int currentSun = 0;
+int currentSun = 100;
 int oldSun = 0;
-int sunFadeStep = 0;
+int sunFadeStep = 98;
 
 void setup_wifi() 
 {
@@ -172,7 +172,8 @@ void callback(char* topic, byte* payload, unsigned int length)
     timer.setTimeout(wakeDelay, increaseWhiteLevel);
     timer.setTimeout((wakeDelay/80), increaseFadeStep);
     timer.setTimeout((wakeDelay/80), increaseSunFadeStep);
-    client.publish(USER_MQTT_CLIENT_NAME"/state", "mqttRGB");
+    client.publish(USER_MQTT_CLIENT_NAME"/command", "sunrise", true); //this sets a retained value to restore the sunrise in case of reconnect
+    client.publish(USER_MQTT_CLIENT_NAME"/state", "mqttRGB"); //this is needed for the state in home assistant
   }
   if (newTopic == USER_MQTT_CLIENT_NAME"/white")
   {

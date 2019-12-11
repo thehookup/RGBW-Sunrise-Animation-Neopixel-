@@ -1,5 +1,10 @@
 # RGBW-Sunrise-Animation-Neopixel-
-MQTT RGBW Sunrise animation with brightness and color control via MQTT
+MQTT RGBW Sunrise animation with brightness and color control via MQTT'
+
+This repository is to accompany my LED Sunrise Video:
+
+[![IMAGE ALT TEXT HERE](https://img.youtube.com/vi/2j3UyrBjB4g/0.jpg)](https://www.youtube.com/watch?v=2j3UyrBjB4g)
+
 
 ## Initial Setup
 

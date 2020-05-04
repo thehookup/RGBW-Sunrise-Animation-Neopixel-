@@ -53,3 +53,22 @@ light:
     retain: true
 ```
 
+## How to build with PlatformIO
+
+1. Install PlatformIO Core <http://docs.platformio.org/page/core.html>
+2. Clone the repo with git or download the sources as .zip and extract it
+3. Change into the folder where the platformio.ini is
+4. Run these commands:
+```shell
+  # Download/Install project libraries
+  > platformio lib install
+  
+  # Build project
+  > platformio run
+
+  # Upload firmware
+  > platformio run --target upload
+
+  # Clean build files
+  > platformio run --target clean
+

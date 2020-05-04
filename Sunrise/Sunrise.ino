@@ -2,6 +2,7 @@
 #include "config.h"
 
 /******************  LIBRARY SECTION *************************************/
+#include <Arduino.h>
 #include <NeoPixelBus.h>          //https://github.com/Makuna/NeoPixelBus
 #include <SimpleTimer.h>          //https://github.com/thehookup/Simple-Timer-Library
 #include <PubSubClient.h>         //https://github.com/knolleary/pubsubclient
@@ -172,7 +173,7 @@ void callback(char* topic, byte* payload, unsigned int length)
   Serial.print(topic);
   Serial.print("] ");
   memset(&charPayload,0,sizeof(charPayload));
-  memcpy(charPayload, payload, min(sizeof(charPayload),length));
+  memcpy(charPayload, payload, min<unsigned long>(sizeof(charPayload),(unsigned long)length));
   charPayload[length] = '\0';
   String newPayload = String(charPayload);
   int intPayload = newPayload.toInt();

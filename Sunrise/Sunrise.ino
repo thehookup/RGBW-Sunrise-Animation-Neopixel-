@@ -1,50 +1,56 @@
+/*****************  USER CONFIG SECTION ***************************************/
+#include "config.h"
+
 /******************  LIBRARY SECTION *************************************/
-#include <Adafruit_NeoPixel.h>    //https://github.com/adafruit/Adafruit_NeoPixel
+#include <Arduino.h>
+#include <NeoPixelBus.h>          //https://github.com/Makuna/NeoPixelBus
 #include <SimpleTimer.h>          //https://github.com/thehookup/Simple-Timer-Library
 #include <PubSubClient.h>         //https://github.com/knolleary/pubsubclient
-#include <ESP8266WiFi.h>          //if you get an error here you need to install the ESP8266 board manager 
-#include <ESP8266mDNS.h>          //if you get an error here you need to install the ESP8266 board manager 
-#include <ArduinoOTA.h>           //ArduinoOTA is now included with the ArduinoIDE
+#ifdef ESP32
+  #include <WiFi.h>
+  #include <ESPmDNS.h>
+#elif defined(ESP8266)
+  #include <ESP8266WiFi.h>
+  #include <ESP8266mDNS.h>
+#endif
+#ifdef ENABLE_OTA
+  #include <ArduinoOTA.h>           //ArduinoOTA is now included with the ArduinoIDE
+#endif
 
-/*****************  START USER CONFIG SECTION *********************************/
-/*****************  START USER CONFIG SECTION *********************************/
-/*****************  START USER CONFIG SECTION *********************************/
-/*****************  START USER CONFIG SECTION *********************************/
+#ifdef ESP32
+  #define LED_ON HIGH
+  #define LED_OFF LOW
+#else
+  #define LED_ON LOW
+  #define LED_OFF HIGH
+#endif
 
-#define USER_SSID                 "YOUR_WIFI_SSID"
-#define USER_PASSWORD             "YOUR_WIFI_PASSWORD"
-#define USER_MQTT_SERVER          "YOUR MQTT SERVER"
-#define USER_MQTT_PORT            1883
-#define USER_MQTT_USERNAME        "YOUR_MQTT_LOGIN"
-#define USER_MQTT_PASSWORD        "YOUR_MQTT_PASSWORD"
-#define USER_MQTT_CLIENT_NAME     "SunriseMCU"           //used to define MQTT topics, MQTT Client ID, and ArduinoOTA
-#define LED_PIN 5                                        //pin where the led strip is hooked up
-#define NUM_LEDS 136                                     //number of LEDs in the strip
-#define BRIGHTNESS 255                                   //strip brightness 255 max
-#define SUNSIZE 30                                       //percentage of the strip that is the "sun"
-
-/*****************  END USER CONFIG SECTION *********************************/
-/*****************  END USER CONFIG SECTION *********************************/
-/*****************  END USER CONFIG SECTION *********************************/
-/*****************  END USER CONFIG SECTION *********************************/
-/*****************  END USER CONFIG SECTION *********************************/
+// Function definitions
+void increaseSunFadeStep();
+void increaseFadeStep();
+void increaseWhiteLevel();
+void increaseSunPhase();
 
 /***********************  WIFI AND MQTT SETUP *****************************/
 /***********************  DON'T CHANGE THIS INFO *****************************/
 
-const char* ssid = USER_SSID ; 
+const char* ssid = USER_SSID ;
 const char* password = USER_PASSWORD ;
 const char* mqtt_server = USER_MQTT_SERVER ;
 const int mqtt_port = USER_MQTT_PORT ;
 const char *mqtt_user = USER_MQTT_USERNAME ;
 const char *mqtt_pass = USER_MQTT_PASSWORD ;
-const char *mqtt_client_name = USER_MQTT_CLIENT_NAME ; 
+const char *mqtt_client_name = USER_MQTT_CLIENT_NAME ;
+const char *mqtt_lwt_topic = LWTTOPIC ;
+
+/*****************  ENUMS         ****************************************/
+enum Effects { eOff, eSunrise, eMqttRGB };
 
 /*****************  DECLARATIONS  ****************************************/
 WiFiClient espClient;
 PubSubClient client(espClient);
 SimpleTimer timer;
-Adafruit_NeoPixel strip = Adafruit_NeoPixel(NUM_LEDS, LED_PIN, NEO_GRBW + NEO_KHZ800);
+NeoPixelBus<NeoGrbwFeature, Neo800KbpsMethod> strip(NUM_LEDS, LED_PIN);
 
 /*****************  GENERAL VARIABLES  *************************************/
 
@@ -58,7 +64,7 @@ byte red = 127;
 byte green = 127;
 byte blue = 127;
 byte white = 127;
-String effect = "off";
+Effects effect = eOff;
 char charPayload[50];
 int wakeDelay = 1000;
 int fadeStep = 98;
@@ -69,14 +75,31 @@ int currentSun = 100;
 int oldSun = 0;
 int sunFadeStep = 98;
 
-void setup_wifi() 
+#ifdef DEBUG
+  unsigned int debugTime;
+#endif
+
+void setup_wifi()
 {
+  #ifdef ESP32
+  WiFi.setSleep(false);
+  #else
+  WiFi.setSleepMode(WIFI_NONE_SLEEP);
+  #endif
+  
+  WiFi.mode(WIFI_STA);
+
+  #ifdef ESP32
+    WiFi.setHostname(USER_MQTT_CLIENT_NAME);
+  #else
+    WiFi.hostname(USER_MQTT_CLIENT_NAME);
+  #endif
+
   // We start by connecting to a WiFi network
   Serial.println();
   Serial.print("Connecting to ");
   Serial.println(ssid);
 
-  WiFi.hostname(USER_MQTT_CLIENT_NAME);
   WiFi.begin(ssid, password);
 
   while (WiFi.status() != WL_CONNECTED) {
@@ -86,11 +109,11 @@ void setup_wifi()
 
   Serial.println("");
   Serial.println("WiFi connected");
-  Serial.println("IP address: ");
+  Serial.print("IP address: ");
   Serial.println(WiFi.localIP());
 }
 
-void reconnect() 
+void reconnect()
 {
   // Loop until we're reconnected
   int retries = 0;
@@ -99,9 +122,10 @@ void reconnect()
     {
         Serial.print("Attempting MQTT connection...");
       // Attempt to connect
-      if (client.connect(mqtt_client_name, mqtt_user, mqtt_pass)) 
+      if (client.connect(mqtt_client_name, mqtt_user, mqtt_pass, mqtt_lwt_topic, 0, true, "Offline"))
       {
         Serial.println("connected");
+        client.publish(mqtt_lwt_topic, "Online", true);
         // Once connected, publish an announcement...
         if(boot == true)
         {
@@ -110,15 +134,15 @@ void reconnect()
         }
         if(boot == false)
         {
-          client.publish(USER_MQTT_CLIENT_NAME"/checkIn","Reconnected"); 
+          client.publish(USER_MQTT_CLIENT_NAME"/checkIn","Reconnected");
         }
         client.subscribe(USER_MQTT_CLIENT_NAME"/command");
         client.subscribe(USER_MQTT_CLIENT_NAME"/effect");
         client.subscribe(USER_MQTT_CLIENT_NAME"/color");
         client.subscribe(USER_MQTT_CLIENT_NAME"/white");
         client.subscribe(USER_MQTT_CLIENT_NAME"/wakeAlarm");
-      } 
-      else 
+      }
+      else
       {
         Serial.print("failed, rc=");
         Serial.print(client.state());
@@ -142,23 +166,32 @@ void reconnect()
 /************************** MQTT CALLBACK ***********************/
 
 
-void callback(char* topic, byte* payload, unsigned int length) 
+void callback(char* topic, byte* payload, unsigned int length)
 {
   Serial.print("Message arrived [");
   String newTopic = topic;
   Serial.print(topic);
   Serial.print("] ");
-  payload[length] = '\0';
-  String newPayload = String((char *)payload);
+  memset(&charPayload,0,sizeof(charPayload));
+  memcpy(charPayload, payload, min<unsigned long>(sizeof(charPayload),(unsigned long)length));
+  charPayload[length] = '\0';
+  String newPayload = String(charPayload);
   int intPayload = newPayload.toInt();
   Serial.println(newPayload);
   Serial.println();
-  newPayload.toCharArray(charPayload, newPayload.length() + 1); 
-  
-  if (newTopic == USER_MQTT_CLIENT_NAME"/command") 
+  newPayload.toCharArray(charPayload, newPayload.length() + 1);
+
+  if (newTopic == USER_MQTT_CLIENT_NAME"/command")
   {
-    effect = newPayload;
-    client.publish(USER_MQTT_CLIENT_NAME"/state", charPayload);
+    //effect = newPayload;
+    if ( strcmp(charPayload, "off") == 0 )
+    {
+      effect = eOff;
+    } else if ( strcmp(charPayload, "mqttRGB") == 0 )
+    {
+      effect = eMqttRGB;
+    }
+    client.publish(USER_MQTT_CLIENT_NAME"/state", charPayload, true);
   }
   if (newTopic == USER_MQTT_CLIENT_NAME"/wakeAlarm")
   {
@@ -166,7 +199,7 @@ void callback(char* topic, byte* payload, unsigned int length)
     sunPhase = 0;
     fadeStep = 0;
     sunFadeStep = 0;
-    effect = "sunrise";
+    effect = eSunrise;
     wakeDelay = intPayload*10;
     timer.setTimeout(wakeDelay, increaseSunPhase);
     timer.setTimeout(wakeDelay, increaseWhiteLevel);
@@ -182,38 +215,20 @@ void callback(char* topic, byte* payload, unsigned int length)
   }
   if (newTopic == USER_MQTT_CLIENT_NAME "/color")
   {
-    client.publish(USER_MQTT_CLIENT_NAME "/colorState", charPayload); 
+    client.publish(USER_MQTT_CLIENT_NAME "/colorState", charPayload);
     // get the position of the first and second commas
-    uint8_t firstIndex = newPayload.indexOf(',');
-    uint8_t lastIndex = newPayload.lastIndexOf(',');
-    
-    uint8_t rgb_red = newPayload.substring(0, firstIndex).toInt();
-    if (rgb_red < 0 || rgb_red > 255) 
+    int firstIndex = newPayload.indexOf(',');
+    int lastIndex = newPayload.lastIndexOf(',');
+
+    if ( ( firstIndex > -1) && (lastIndex > -1) && (firstIndex != lastIndex) )
     {
-      return;
-    } 
-    else 
-    {
+      uint8_t rgb_red = newPayload.substring(0, firstIndex).toInt();
       red = rgb_red;
-    }
-    
-    uint8_t rgb_green = newPayload.substring(firstIndex + 1, lastIndex).toInt();
-    if (rgb_green < 0 || rgb_green > 255) 
-    {
-      return;
-    } 
-    else 
-    {
+
+      uint8_t rgb_green = newPayload.substring(firstIndex + 1, lastIndex).toInt();
       green = rgb_green;
-    }
-    
-    uint8_t rgb_blue = newPayload.substring(lastIndex + 1).toInt();
-    if (rgb_blue < 0 || rgb_blue > 255) 
-    {
-      return;
-    } 
-    else 
-    {
+
+      uint8_t rgb_blue = newPayload.substring(lastIndex + 1).toInt();
       blue = rgb_blue;
     }
   }
@@ -277,7 +292,7 @@ void drawSun()
   {
     sunFadeStep = 0;
   }
-  
+
   int sunStart = (NUM_LEDS/2)-(currentSun/2);
   int newSunLeft = sunStart-1;
   int newSunRight = sunStart+currentSun;
@@ -285,12 +300,12 @@ void drawSun()
   {
    int redValue =  map(sunFadeStep, 0, 100, 127, 255);
    int whiteValue = map(sunFadeStep, 0, 100, 0, whiteLevel);
-   strip.setPixelColor(newSunLeft, redValue, 25,0,whiteValue);
-   strip.setPixelColor(newSunRight, redValue, 25,0,whiteValue);
+   strip.SetPixelColor(newSunLeft, RgbwColor(redValue, 25,0,whiteValue));
+   strip.SetPixelColor(newSunRight, RgbwColor(redValue, 25,0,whiteValue));
   }
   for(int i = sunStart; i < sunStart+currentSun; i++)
   {
-    strip.setPixelColor(i, 255, 64,0,whiteLevel); 
+    strip.SetPixelColor(i, RgbwColor(255, 64,0,whiteLevel));
   }
   oldSun = currentSun;
 }
@@ -314,12 +329,12 @@ void drawAurora()
   {
    int redValue =  map(fadeStep, 0, 100, whiteLevel, 127);
    int greenValue =  map(fadeStep, 0, 100, 0, 25);
-   strip.setPixelColor(newAuroraRight, redValue, greenValue,0,0);
-   strip.setPixelColor(newAuroraLeft, redValue, greenValue,0,0);
+   strip.SetPixelColor(newAuroraRight, RgbwColor(redValue, greenValue,0,0));
+   strip.SetPixelColor(newAuroraLeft, RgbwColor(redValue, greenValue,0,0));
   }
   for(int i = sunStart; i < sunStart+currentAurora; i++)
   {
-    strip.setPixelColor(i, 127, 25,0,0); 
+    strip.SetPixelColor(i, RgbwColor(127, 25,0,0));
   }
   oldFadeStep = fadeStep;
   oldAurora = currentAurora;
@@ -329,7 +344,7 @@ void drawAmbient()
 {
   for(int i = 0; i < NUM_LEDS; i++)
   {
-    strip.setPixelColor(i, whiteLevel, 0,0,0); 
+    strip.SetPixelColor(i, RgbwColor(whiteLevel,0,0,0));
   }
 }
 
@@ -344,7 +359,7 @@ void off()
 {
   for(int i = 0; i < NUM_LEDS; i++)
   {
-    strip.setPixelColor(i, 0,0,0,0); 
+    strip.SetPixelColor(i, RgbwColor(0,0,0,0)); 
   }
 }
 
@@ -352,51 +367,111 @@ void mqttRGB()
 {
   for(int i = 0; i < NUM_LEDS; i++)
   {
-    strip.setPixelColor(i, red,green,blue,white); 
+    strip.SetPixelColor(i, RgbwColor(red,green,blue,white)); 
   }
 }
 
 void selectEffect()
 {
-  if(effect == "sunrise")
+  switch(effect)
   {
-    sunRise();
-  }
-  if(effect == "mqttRGB")
-  {
-    mqttRGB();
-  }
-  if(effect == "off")
-  {
-    off();
+    case eSunrise:
+      sunRise();
+      digitalWrite(LED_BUILTIN, LED_ON);
+      break;
+    case eMqttRGB:
+      mqttRGB();
+      digitalWrite(LED_BUILTIN, LED_ON);
+      break;
+    default:
+      off();
+      digitalWrite(LED_BUILTIN, LED_OFF);
+      break;
   }
 }
 
-void setup() 
+void setup()
 {
+  pinMode(LED_BUILTIN, OUTPUT);          // Initialize the LED_BUILTIN pin as an output
+  digitalWrite(LED_BUILTIN, LED_OFF);    // Turn the LED off by making the voltage HIGH
   Serial.begin(115200);
-  WiFi.setSleepMode(WIFI_NONE_SLEEP);
-  WiFi.mode(WIFI_STA);
+#if defined(DEBUG) && defined(ESP8266)
+  	gdbstub_init();
+#endif
   setup_wifi();
+
   client.setServer(mqtt_server, mqtt_port);
   client.setCallback(callback);
-  ArduinoOTA.setHostname(USER_MQTT_CLIENT_NAME);
-  ArduinoOTA.begin(); 
-  strip.setBrightness(BRIGHTNESS);
-  strip.begin();
+  #ifdef ENABLE_OTA
+    ArduinoOTA.setHostname(USER_MQTT_CLIENT_NAME);
+    ArduinoOTA.onStart([]() {
+      String type;
+      if (ArduinoOTA.getCommand() == U_FLASH) {
+        type = "sketch";
+      } else { // U_SPIFFS
+        type = "filesystem";
+      }
+      Serial.println("Start updating " + type);
+    });
+    ArduinoOTA.onEnd([]() {
+      Serial.println("\nEnd");
+    });
+    ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+      Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
+    });
+    ArduinoOTA.onError([](ota_error_t error) {
+      Serial.printf("Error[%u]: ", error);
+      if (error == OTA_AUTH_ERROR) {
+        Serial.println("Auth Failed");
+      } else if (error == OTA_BEGIN_ERROR) {
+        Serial.println("Begin Failed");
+      } else if (error == OTA_CONNECT_ERROR) {
+        Serial.println("Connect Failed");
+      } else if (error == OTA_RECEIVE_ERROR) {
+        Serial.println("Receive Failed");
+      } else if (error == OTA_END_ERROR) {
+        Serial.println("End Failed");
+      }
+    });
+
+    ArduinoOTA.begin();
+  #endif
+
+  // this resets all the neopixels to an off state
+  strip.Begin();
+  strip.Show();
 }
 
 void loop() 
 {
-  if (!client.connected()) 
+  if (!client.connected())
   {
     reconnect();
   }
   client.loop();
-  ArduinoOTA.handle();
+  #ifdef ENABLE_OTA
+    ArduinoOTA.handle();
+  #endif
   timer.run();
   selectEffect();
-  strip.show(); 
+  strip.Show();
+
+  #ifdef DEBUG
+    if ( millis() - debugTime > 5000 ) {
+      Serial.print("FreeHeap: ");
+      Serial.print(ESP.getFreeHeap());
+      #if defined(ESP8266)
+        Serial.print(" HeapFragmentation: ");
+        Serial.print(ESP.getHeapFragmentation());
+        Serial.print(" MaxFreeBlockSize: ");
+        Serial.println(ESP.getMaxFreeBlockSize());
+      #elif defined(ESP32)
+        Serial.print(" MaxAllocHeap: ");
+        Serial.println(ESP.getMaxAllocHeap());
+      #endif
+      debugTime = millis();
+    }
+  #endif
 }
 
 

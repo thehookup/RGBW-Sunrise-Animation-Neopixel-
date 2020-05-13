@@ -46,7 +46,32 @@ light:
     rgb_state_topic: "SunriseMCU/colorState"
     white_value_command_topic: "SunriseMCU/white"
     white_value_state_topic: "SunriseMCU/whiteState"
+    availability_topic: "LWT/SunriseMCU"
+    payload_available: "Online"
+    payload_not_available: "Offline"
     white_value_scale: 255
     retain: true
 ```
+
+## How to build with PlatformIO
+
+1. Install PlatformIO Core <http://docs.platformio.org/page/core.html>
+2. Clone the repo with git or download the sources as .zip and extract it
+3. Change into the folder where the platformio.ini is
+4. Run these commands:
+```shell
+  # Download/Install project libraries
+  > platformio lib install
+
+  # Build project
+  > platformio run
+
+  # Upload firmware to NodeMCU 1.0
+  > platformio run -e nodemcuv2 --target upload
+
+  # Upload firmware to DOIT ESP32 DEVKIT V1
+  > platformio run -e esp32doit-devkit-v1 --target upload
+
+  # Clean build files
+  > platformio run --target clean
 

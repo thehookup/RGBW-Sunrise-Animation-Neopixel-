@@ -396,7 +396,10 @@ void loop()
   ArduinoOTA.handle();
   timer.run();
   selectEffect();
-  strip.show(); 
+  if(boot == false)
+  {
+    strip.show(); 
+  }
 }
 
 

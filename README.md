@@ -12,7 +12,7 @@ This repository is to accompany my LED Sunrise Video:
 2. Ensure you have the correct libraries download and installed (links at top of the ino file)
 3. Update information in the user configuration section and upload to the NodeMCU
 4. Hook up your NodeMCU, to your RGBW LED strip (default pin is D1 which is GPIO-5)
-5. Send the number of minutes you'd like the sunrise to be spread over to the MQTT topic:
+5. Send the number of seconds you'd like the sunrise to be spread over to the MQTT topic:
 
 ```c++
 [USER_MQTT_CLIENT_NAME]/wakeAlarm
